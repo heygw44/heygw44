@@ -15,7 +15,7 @@
     <td><a href="https://cayman031.tistory.com/28"><img src="https://via.placeholder.com/300x200?text=No+Image" alt="HTTP 쿠키" width="300" height="200" /></a><br/><strong><a href="https://cayman031.tistory.com/28">[HTTP] 쿠키</a></strong><br/>왜 쿠키가 필요할까? HTTP는 기본적으로 무상태(stateless)프로토콜이라, 요청 하...<br/>2025.12.08</td>
   </tr>
   <tr>
-    <td><a href="https://cayman031.tistory.com/27"><img src="https://via.placeholder.com/300x200?text=No+Image" alt="Web JWT가 사용하기 어려운 이유" width="300" height="200" /></a><br/><strong><a href="https://cayman031.tistory.com/27">[Web] JWT가 사용하기 어려운 이유</a></strong><br/>1. JWT를 실무에서 어렵게 만드는 것들 JWT의 개념 자체는 단순하다. `header....<br/>2025.12.06</td>
+    <td><a href="https://cayman031.tistory.com/27"><img src="https://via.placeholder.com/300x200?text=No+Image" alt="Web JWT가 사용하기 어려운 이유" width="300" height="200" /></a><br/><strong><a href="https://cayman031.tistory.com/27">[Web] JWT가 사용하기 어려운 이유</a></strong><br/>1. JWT를 실무에서 어렵게 만드는 것들 JWT의 개념 자체는 단순하다. header.p...<br/>2025.12.06</td>
     <td><a href="https://cayman031.tistory.com/26"><img src="https://via.placeholder.com/300x200?text=No+Image" alt="Web Session vs JWT" width="300" height="200" /></a><br/><strong><a href="https://cayman031.tistory.com/26">[Web] Session vs JWT</a></strong><br/>1. 서론 백엔드 서버에서 많이 사용하는 세션 기반 인증과 JWT 기반 인증을 비교해보려 ...<br/>2025.12.05</td>
     <td><a href="https://cayman031.tistory.com/25"><img src="https://blog.kakaocdn.net/dn/GLtQs/dJMcacO7XKq/pGNJK1vb1dhrJCAb1kR9q1/img.jpg" alt="DevOps CI/CD란?" width="300" height="200" /></a><br/><strong><a href="https://cayman031.tistory.com/25">[DevOps] CI/CD란?</a></strong><br/>1. CI/CD 개념 요약 CI (Continuous Integration, 지속적 통합)...<br/>2025.12.05</td>
   </tr>
