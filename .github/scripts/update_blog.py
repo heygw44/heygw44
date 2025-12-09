@@ -11,6 +11,8 @@ def clean_html(raw_html):
 
     # 줄바꿈과 연속된 공백을 하나의 공백으로 치환 (테이블 깨짐 방지)
     cleantext = re.sub(r'\s+', ' ', cleantext)
+    # 특수문자 제거 추가
+    cleantext = cleantext.replace('|', '').replace('"', "'")
     return cleantext.strip()
 
 
