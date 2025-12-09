@@ -113,12 +113,12 @@ def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
             # alt 텍스트에서 특수문자 제거
             safe_title = re.sub(r"[\[\]\(\)`]", "", title)
 
-            # 셀 내용: HTML + 마크다운 혼합 (줄바꿈은 <br/>)
+            # 셀 내용: HTML만 사용 (마크다운 X)
             cell = (
                 f'<a href="{link}">'
                 f'<img src="{thumbnail}" alt="{safe_title}" width="300" height="200" />'
                 f"</a><br/>"
-                f"**[{title}]({link})**<br/>"
+                f'<strong><a href="{link}">{title}</a></strong><br/>'
                 f"{description}<br/>"
                 f"{pub_date}"
             )
