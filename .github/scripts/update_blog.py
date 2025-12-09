@@ -1,5 +1,6 @@
 import feedparser
 import re
+import html
 from datetime import datetime
 
 
@@ -8,7 +9,8 @@ def clean_html(raw_html: str) -> str:
     if not raw_html:
         return ""
 
-    text = raw_html
+    # HTML 엔티티(&lt;, &gt;, &amp;) 해제
+    text = html.unescape(raw_html)
 
     # 1) HTML 태그 제거
     text = re.sub(r"<.*?>", "", text)
@@ -16,7 +18,7 @@ def clean_html(raw_html: str) -> str:
     # 2) Markdown 링크 [text](url) -> text
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
 
-    # 3) 굵게/기울임 표시 제거 **text** -> text, *text* -> text
+    # 3) 굵게/기울임 표시 제거 **text**, *text*
     text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
     text = re.sub(r"\*([^*]+)\*", r"\1", text)
 
@@ -30,10 +32,8 @@ def clean_html(raw_html: str) -> str:
 
 
 def get_thumbnail(entry) -> str:
-    """RSS 엔트리에서 썸네일 이미지 URL을 추출하는 함수"""
-
+    """RSS 엔트리에서 썸네일 이미지 URL을 추출"""
     def _normalize_url(url: str) -> str:
-        """프로토콜/형식을 GitHub에서 안전하게 쓸 수 있도록 정리"""
         if not url:
             return url
         url = url.strip()
@@ -43,7 +43,6 @@ def get_thumbnail(entry) -> str:
             url = url.replace("http://", "https://")
         return url
 
-    # 우선순위 1: media_thumbnail
     if hasattr(entry, "media_thumbnail"):
         try:
             url = entry.media_thumbnail[0].get("url")
@@ -53,7 +52,6 @@ def get_thumbnail(entry) -> str:
         except Exception:
             pass
 
-    # 우선순위 2: enclosures
     if hasattr(entry, "enclosures") and entry.enclosures:
         for enclosure in entry.enclosures:
             if enclosure.get("type", "").startswith("image/"):
@@ -61,7 +59,6 @@ def get_thumbnail(entry) -> str:
                 if url:
                     return url
 
-    # 우선순위 3: description 내 첫 번째 <img>
     if hasattr(entry, "description") and entry.description:
         img_match = re.search(r'<img[^>]+src="([^"]+)"', entry.description)
         if img_match:
@@ -69,42 +66,32 @@ def get_thumbnail(entry) -> str:
             if url:
                 return url
 
-    # 모두 없을 경우 기본 이미지 (공용 placeholder)
     return "https://via.placeholder.com/300x200?text=No+Image"
 
 
 def format_date(date_str: str) -> str:
-    """RSS의 날짜를 YYYY.MM.DD 형식으로 변환하는 함수"""
+    """RSS의 날짜를 YYYY.MM.DD 형식으로 변환"""
     if not date_str:
         return ""
-
     try:
-        # RSS 표준 날짜 형식 파싱
         date_obj = datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %z")
         return date_obj.strftime("%Y.%m.%d")
     except Exception:
-        # 파싱 실패 시 원본 그대로 반환
         return date_str
 
 
 def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
     """RSS 피드에서 블로그 글을 가져와 3열 HTML 테이블 생성"""
-
-    # RSS 피드 파싱
     feed = feedparser.parse(feed_url)
-    entries = feed.entries[:max_posts]  # 최신 글만 가져오기
+    entries = feed.entries[:max_posts]
 
     if not entries:
         return "<p>최근 글이 없습니다.</p>"
 
-    # HTML 테이블 시작
     table = "<table>\n"
 
-    # 3개씩 묶어서 행 생성
     for i in range(0, len(entries), 3):
         row_entries = entries[i: i + 3]
-
-        # 3개 미만인 경우 None으로 채워서 3칸 맞추기
         while len(row_entries) < 3:
             row_entries.append(None)
 
@@ -115,34 +102,28 @@ def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
                 table += "    <td></td>\n"
                 continue
 
-            # 각 글의 정보 추출
-            thumbnail = get_thumbnail(entry)           # 썸네일 이미지
-            raw_title = entry.title                    # 원본 제목
-            title = clean_html(raw_title)              # HTML/마크다운 제거한 제목
-            link = entry.link                          # 글 링크
+            thumbnail = get_thumbnail(entry)
+            title = clean_html(entry.title)
+            link = entry.link
 
-            # 설명 원본 -> 정제
             raw_desc = entry.get("description", "")
             description = clean_html(raw_desc)
 
-            # 1) description 이 제목으로 시작하면 제목 부분 제거
-            if description.startswith(title):
+            # 제목 제거 (description이 제목으로 시작하면)
+            if description.lower().startswith(title.lower()):
                 description = description[len(title):].lstrip(" -:|")
 
-            # 2) 맨 앞의 카테고리 태그 형태([HTTP], [Web] 등) 제거
+            # 카테고리 태그 제거
             description = re.sub(r"^\[[^\]]+\]\s*", "", description)
 
-            # 3) 길이 제한
+            # 길이 제한
             max_len = 80
             if len(description) > max_len:
                 description = description[:max_len].rstrip() + "..."
 
-            pub_date = format_date(entry.get("published", ""))  # 발행일
-
-            # alt 텍스트에서 특수문자 제거
+            pub_date = format_date(entry.get("published", ""))
             safe_title = re.sub(r"[\[\]\(\)`]", "", title)
 
-            # 셀 내용: HTML만 사용
             cell = (
                 f'<a href="{link}">'
                 f'<img src="{thumbnail}" alt="{safe_title}" width="300" height="200" />'
@@ -162,23 +143,15 @@ def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
 
 def update_readme(readme_path: str, table_content: str) -> None:
     """README.md 파일의 마커 사이 내용을 새로운 테이블로 업데이트"""
-
-    # README.md 읽기
     with open(readme_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # 업데이트할 영역을 나타내는 마커
-    # README.md 안에 반드시 아래 두 줄이 있어야 합니다.
-    # <!-- BLOG-POST-LIST:START -->
-    # <!-- BLOG-POST-LIST:END -->
     start_marker = "<!-- BLOG-POST-LIST:START -->"
     end_marker = "<!-- BLOG-POST-LIST:END -->"
 
-    # 마커 위치 찾기
     start_idx = content.find(start_marker)
     end_idx = content.find(end_marker)
 
-    # 마커가 있으면 내용 교체
     if start_idx != -1 and end_idx != -1:
         new_content = (
             content[: start_idx + len(start_marker)]
@@ -187,21 +160,14 @@ def update_readme(readme_path: str, table_content: str) -> None:
             + "\n"
             + content[end_idx:]
         )
-
-        # README.md 파일에 쓰기
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(new_content)
-
         print("✅ README.md updated successfully!")
     else:
         print("❌ Could not find markers in README.md")
-        print("README.md 에 다음 두 마커가 존재하는지 확인하세요:")
-        print(start_marker)
-        print(end_marker)
 
 
 if __name__ == "__main__":
-    # 본인의 Tistory RSS URL
     RSS_FEED_URL = "https://cayman031.tistory.com/rss"
     README_PATH = "README.md"
 
