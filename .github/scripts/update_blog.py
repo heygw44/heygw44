@@ -9,15 +9,30 @@ def clean_html(raw_html: str) -> str:
     if not raw_html:
         return ""
 
+    # HTML 엔티티(&lt;, &gt;, &amp;) 해제
     text = html.unescape(raw_html)
+
+    # 1) HTML 태그 제거
     text = re.sub(r"<.*?>", "", text)
+
+    # 2) Markdown 링크 [text](url) -> text
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+
+    # 3) 굵게/기울임 표시 제거 **text**, *text*
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+
+    # 4) 인라인 코드 백틱 제거
+    text = text.replace("`", "")
+
+    # 5) 공백 정리
     text = re.sub(r"\s+", " ", text)
+
     return text.strip()
 
 
 def get_thumbnail(entry) -> str:
-    """RSS 엔트리에서 썸네일 이미지 URL을 추출하는 함수"""
-
+    """RSS 엔트리에서 썸네일 이미지 URL을 추출"""
     def _normalize_url(url: str) -> str:
         if not url:
             return url
@@ -28,7 +43,6 @@ def get_thumbnail(entry) -> str:
             url = url.replace("http://", "https://")
         return url
 
-    # 1. media_thumbnail
     if hasattr(entry, "media_thumbnail"):
         try:
             url = entry.media_thumbnail[0].get("url")
@@ -38,7 +52,6 @@ def get_thumbnail(entry) -> str:
         except Exception:
             pass
 
-    # 2. enclosures
     if hasattr(entry, "enclosures") and entry.enclosures:
         for enclosure in entry.enclosures:
             if enclosure.get("type", "").startswith("image/"):
@@ -46,7 +59,6 @@ def get_thumbnail(entry) -> str:
                 if url:
                     return url
 
-    # 3. description 내 첫 번째 <img>
     if hasattr(entry, "description") and entry.description:
         img_match = re.search(r'<img[^>]+src="([^"]+)"', entry.description)
         if img_match:
@@ -54,7 +66,6 @@ def get_thumbnail(entry) -> str:
             if url:
                 return url
 
-    # 기본 이미지
     return "https://via.placeholder.com/300x200?text=No+Image"
 
 
@@ -94,16 +105,57 @@ def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
             thumbnail = get_thumbnail(entry)
             title = clean_html(entry.title)
             link = entry.link
+            
+            # 날짜 포맷
             pub_date = format_date(entry.get("published", ""))
+            
+            # description 처리
+            raw_desc = entry.get("description", "")
+            description = clean_html(raw_desc)
+            
+            # 비교를 위해 특수문자와 괄호 등을 제거한 '순수 텍스트' 생성
+            # 예: "[Gradle] 제목" -> "제목", "Gradle 제목" -> "제목"
+            def normalize_string(s):
+                # 대괄호 안의 내용([]) 제거
+                s = re.sub(r"\[.*?\]", "", s)
+                # 특수문자 제거 및 소문자 변환
+                s = re.sub(r"[^\w\s]", "", s).lower()
+                return s.replace(" ", "")
 
+            norm_title = normalize_string(title)
+            norm_desc = normalize_string(description)
+
+            # 1. 일반적인 '제목으로 시작하는 경우' 제거
+            if description.lower().startswith(title.lower()):
+                description = description[len(title):]
+            
+            # 2. 정규화된(괄호 뗀) 제목이 본문 시작과 일치하는 경우 제거 (스크린샷 문제 해결)
+            elif norm_desc.startswith(norm_title):
+                # 본문에서 제목 길이만큼 대략적으로 잘라내기 (정확한 인덱스 찾기 어려우므로 길이 추정)
+                # 원본 제목 길이만큼 자르되, 앞부분의 남은 특수문자들 제거
+                if len(description) > len(title):
+                     # 제목과 유사한 앞부분을 건너뜀 (조금 더 보수적으로 0.8배 길이부터 탐색)
+                     description = description[len(title):]
+            
+            # 3. 앞부분에 남은 특수문자(-, :, | 등) 및 공백 제거
+            description = description.lstrip(" -:|[]")
+            
+            # -----------------------------------------------
+
+            # 길이 제한
+            max_len = 100
+            if len(description) > max_len:
+                description = description[:max_len].rstrip() + "..."
+            
+            # 제목에서 괄호 등 제거하여 alt 태그용 안전한 제목 생성
             safe_title = re.sub(r"[\[\]\(\)`]", "", title)
 
-            # description 제거 — 제목 + 이미지 + 날짜만 표시
             cell = (
                 f'<a href="{link}">'
                 f'<img src="{thumbnail}" alt="{safe_title}" width="300" height="200" />'
                 f"</a><br/>"
                 f'<strong><a href="{link}">{title}</a></strong><br/>'
+                f"{description}<br/>"
                 f"{pub_date}"
             )
 
