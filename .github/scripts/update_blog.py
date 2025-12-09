@@ -76,25 +76,33 @@ def format_date(date_str: str) -> str:
 
 
 def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
-    """RSS 피드에서 블로그 글을 가져와 3열 테이블 형태의 마크다운 생성"""
+    """RSS 피드에서 블로그 글을 가져와 3열 HTML 테이블 생성"""
 
     # RSS 피드 파싱
     feed = feedparser.parse(feed_url)
     entries = feed.entries[:max_posts]  # 최신 글만 가져오기
 
     if not entries:
-        return "| | | |\n|---|---|---|\n| 최근 글이 없습니다. | | |\n"
+        return "<p>최근 글이 없습니다.</p>"
 
-    # 마크다운 테이블 헤더 (3열)
-    table = "| | | |\n"
-    table += "|---|---|---|\n"
+    # HTML 테이블 시작
+    table = "<table>\n"
 
     # 3개씩 묶어서 행 생성
     for i in range(0, len(entries), 3):
-        row_entries = entries[i : i + 3]
-        row = "|"
+        row_entries = entries[i: i + 3]
+
+        # 3개 미만인 경우 None으로 채워서 3칸 맞추기
+        while len(row_entries) < 3:
+            row_entries.append(None)
+
+        table += "  <tr>\n"
 
         for entry in row_entries:
+            if entry is None:
+                table += "    <td></td>\n"
+                continue
+
             # 각 글의 정보 추출
             thumbnail = get_thumbnail(entry)                    # 썸네일 이미지
             title = entry.title                                 # 글 제목
@@ -102,10 +110,10 @@ def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
             description = clean_html(entry.get("description", ""))[:50] + "..."
             pub_date = format_date(entry.get("published", ""))  # 발행일
 
-            # alt 텍스트에서 특수문자 제거 (렌더링 안정성)
+            # alt 텍스트에서 특수문자 제거
             safe_title = re.sub(r"[\[\]\(\)`]", "", title)
 
-            # 셀 내용: "한 줄"짜리 문자열로 구성 (줄바꿈은 <br/> 로만)
+            # 셀 내용: HTML + 마크다운 혼합 (줄바꿈은 <br/>)
             cell = (
                 f'<a href="{link}">'
                 f'<img src="{thumbnail}" alt="{safe_title}" width="300" height="200" />'
@@ -115,16 +123,11 @@ def create_blog_table(feed_url: str, max_posts: int = 6) -> str:
                 f"{pub_date}"
             )
 
-            row += f" {cell} |"
+            table += f"    <td>{cell}</td>\n"
 
-        # 3개 미만인 경우 빈 셀로 채우기
-        while len(row_entries) < 3:
-            row += " |"
-            row_entries.append(None)
+        table += "  </tr>\n"
 
-        # 행 끝에는 실제 개행 문자 사용 (행과 행을 구분하기 위해서만)
-        table += row + "\n"
-
+    table += "</table>\n"
     return table
 
 
